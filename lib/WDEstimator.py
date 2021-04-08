@@ -71,7 +71,7 @@ class WDEstimator:
             else:
                 boollist = np.append(boollist, True)
         self.workingdir = self.workingdir[boollist]
-    
+
     # タイムラインを代表するフォルダ
     def __representative_dir(self, left, right):
         files = []
@@ -83,7 +83,7 @@ class WDEstimator:
             for f in range(0, len(files)):
                 if files[f][d] != mostshort[d]: flag=0
             if flag==1: return "/".join(mostshort[0:d+1])
-                
+
     # 隣接ファイル間の移動コストでログを分割
     def __split_with_upper_layer(self):
         time_line = [0]
@@ -129,7 +129,7 @@ class WDEstimator:
             else:
                 cost += 1 * weight
         return cost
-                
+
     # 更新時刻の交錯でログを分割
     def __split_with_cross_mtime(self, left, right):
         result = [left]
@@ -166,7 +166,7 @@ class WDEstimator:
                 fflag = 0
                 checked = []
         result.append(right)
-        return result    
+        return result
 
     def __search_right(self, left, right):
         for i in range(right, left, -1):
@@ -188,12 +188,72 @@ class WDEstimator:
 
     # タイムラインの更新密度が閾値以上なら Unmanaged == True
     def __is_unmanaged_density(self, left, right):
+        result = []
         sec = self.log[right].timestamp - self.log[left].timestamp
         if sec.total_seconds() == 0:
             return False # 0 div error
         n_updates = right - left + 1
         density = n_updates / sec.total_seconds()
+        est_wd = self.__representative_dir(left, right)
+
+        if self.__is_programing_with_compile(left, right, 1, 3):
+            print(str(self.log[left].timestamp) + "\t" + str(self.log[right].timestamp) + "\t" + str(est_wd) + "\t" + str(n_updates) + "\t" + str(sec) + "\t" + str(density) + "\t" + "compile")
+            return False
         if density > self.density_threshold:
+            print(str(self.log[left].timestamp) + "\t" + str(self.log[right].timestamp) + "\t" + str(est_wd) + "\t" + str(n_updates) + "\t" + str(sec) + "\t" + str(density) + "\t" + "unmanaged")
+            return True
+        else:
+            print(str(self.log[left].timestamp) + "\t" + str(self.log[right].timestamp) + "\t" + str(est_wd) + "\t" + str(n_updates) + "\t" + str(sec) + "\t" + str(density) + "\t" + "managed")
+            return False
+
+    def __is_programing_with_compile(self, left, right, time_density, log_density):
+        compile_count = 0
+        compile_flag = 0
+        coding_count = 0
+        coding_flag = 0
+        coding_start_tmp = left
+        cp = left # cp(start point)
+        for i in range(left+1, right-1, 1):
+            brank = self.log[i+1].timestamp - self.log[i].timestamp
+            if brank.total_seconds() >= time_density:
+                sp = i # sp(end point)
+                logs = sp - cp + 1
+                if logs >= log_density:
+                    if coding_flag == 1:
+                        coding_start = coding_start_tmp
+                        coding_last = cp-1
+                        coding_logs = coding_last - coding_start + 1
+                        coding_sec = self.log[coding_last].timestamp - self.log[coding_start].timestamp
+                        print(str(self.log[coding_start].timestamp) + "\t" + str(self.log[coding_last].timestamp) + "\t" + str(coding_sec) + "\t" + str(coding_logs), "\tcoding")
+                        coding_count += 1
+                    sec = self.log[sp].timestamp - self.log[cp].timestamp
+                    print(str(self.log[cp].timestamp) + "\t" + str(self.log[sp].timestamp) + "\t" + str(sec) + "\t" + str(logs), "\tcompile")
+                    compile_flag = 1
+                    coding_flag = 0
+                    coding_start_tmp = i+1
+                else:
+                    if compile_flag == 1:
+                        compile_count += 1
+                        compile_flag = 0
+                    coding_flag = 1
+                cp = i+1
+        sp = right
+        logs = sp - cp + 1
+        sec = self.log[sp].timestamp - self.log[cp].timestamp
+        if logs >= log_density:
+            print(str(self.log[cp].timestamp) + "\t" + str(self.log[sp].timestamp) + "\t" + str(sec) + "\t" + str(logs), "\tcompile")
+            compile_flag = 1
+        else:
+            coding_start = coding_start_tmp
+            coding_last = sp
+            coding_logs = coding_last - coding_start + 1
+            coding_sec = self.log[coding_last].timestamp - self.log[coding_start].timestamp
+            print(str(self.log[coding_start].timestamp) + "\t" + str(self.log[coding_last].timestamp) + "\t" + str(coding_sec) + "\t" + str(coding_logs), "\tcoding")
+            coding_count += 1
+        if compile_flag:
+            compile_count += 1
+        print(str(compile_count) + "\t" + str(coding_count))
+        if (compile_count > 1) & (coding_count > 1):
             return True
         else:
             return False

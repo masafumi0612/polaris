@@ -1,6 +1,7 @@
 import numpy as np
 import datetime
 import collections
+import sys
 
 # ワーキングディレクトリとそれの推定に用いたアクセス履歴断片集合
 class WorkingDir:
@@ -196,14 +197,20 @@ class WDEstimator:
         density = n_updates / sec.total_seconds()
         est_wd = self.__representative_dir(left, right)
 
-        if self.__is_programing_with_compile(left, right, 1, 3):
-            print(str(self.log[left].timestamp) + "\t" + str(self.log[right].timestamp) + "\t" + str(est_wd) + "\t" + str(n_updates) + "\t" + str(sec) + "\t" + str(density) + "\t" + "compile")
-            return False
+        evaluation_result = ""
+        for density_X in range(1, 11):
+            for density_Y in range(2, 6):
+                if self.__is_programing_with_compile(left, right, density_X, density_Y):
+                    evaluation_result = evaluation_result + "1,"
+                else:
+                    evaluation_result = evaluation_result + "0,"
+        sec_second = str(sec).split(":")
+        sec_second = int(sec_second[0])*3600 + int(sec_second[1])*60 + int(sec_second[2])
+        print(str(self.log[left].timestamp) + "," + str(self.log[right].timestamp) + "," + str(est_wd) + "," + str(n_updates) + "," + str(sec_second) + "," + str(density) + "," + str(evaluation_result), file=sys.stderr)
+        print(str(self.log[left].timestamp) + "," + str(self.log[right].timestamp) + "," + str(est_wd) + "," + str(n_updates) + "," + str(sec_second) + "," + str(density) + "," + str(evaluation_result))
         if density > self.density_threshold:
-            print(str(self.log[left].timestamp) + "\t" + str(self.log[right].timestamp) + "\t" + str(est_wd) + "\t" + str(n_updates) + "\t" + str(sec) + "\t" + str(density) + "\t" + "unmanaged")
             return True
         else:
-            print(str(self.log[left].timestamp) + "\t" + str(self.log[right].timestamp) + "\t" + str(est_wd) + "\t" + str(n_updates) + "\t" + str(sec) + "\t" + str(density) + "\t" + "managed")
             return False
 
     def __is_programing_with_compile(self, left, right, time_density, log_density):
@@ -224,10 +231,8 @@ class WDEstimator:
                         coding_last = cp-1
                         coding_logs = coding_last - coding_start + 1
                         coding_sec = self.log[coding_last].timestamp - self.log[coding_start].timestamp
-                        print(str(self.log[coding_start].timestamp) + "\t" + str(self.log[coding_last].timestamp) + "\t" + str(coding_sec) + "\t" + str(coding_logs), "\tcoding")
                         coding_count += 1
                     sec = self.log[sp].timestamp - self.log[cp].timestamp
-                    print(str(self.log[cp].timestamp) + "\t" + str(self.log[sp].timestamp) + "\t" + str(sec) + "\t" + str(logs), "\tcompile")
                     compile_flag = 1
                     coding_flag = 0
                     coding_start_tmp = i+1
@@ -241,18 +246,15 @@ class WDEstimator:
         logs = sp - cp + 1
         sec = self.log[sp].timestamp - self.log[cp].timestamp
         if logs >= log_density:
-            print(str(self.log[cp].timestamp) + "\t" + str(self.log[sp].timestamp) + "\t" + str(sec) + "\t" + str(logs), "\tcompile")
             compile_flag = 1
         else:
             coding_start = coding_start_tmp
             coding_last = sp
             coding_logs = coding_last - coding_start + 1
             coding_sec = self.log[coding_last].timestamp - self.log[coding_start].timestamp
-            print(str(self.log[coding_start].timestamp) + "\t" + str(self.log[coding_last].timestamp) + "\t" + str(coding_sec) + "\t" + str(coding_logs), "\tcoding")
             coding_count += 1
         if compile_flag:
             compile_count += 1
-        print(str(compile_count) + "\t" + str(coding_count))
         if (compile_count > 1) & (coding_count > 1):
             return True
         else:

@@ -63,7 +63,7 @@ def cfal(cfal_cmd):
                 f.write(config_template)
 
         subprocess.call(app_home + "/scripts/cfal/initialize.sh")
-        subprocess.call(["systemctl", "--user", "daemon-reload"])
+#        subprocess.call(["systemctl", "--user", "daemon-reload"])
         logger.info("Initialize CFAL.")
     elif cfal_cmd == "start":
         subprocess.call(app_home + "/scripts/cfal/start.sh")
@@ -118,7 +118,7 @@ def enable():
             service_template = service_template.replace("APPLICATION_ROOT", app_home)
             with open("/" + "/".join(app_home.split("/")[1:3]) + "/Library/LaunchAgents/polaris.plist", "w+") as f:
                 f.write(service_template)
-            subprocess.call(["launchctl", "load", "polaris.plist"])
+            subprocess.call(["launchctl", "load", "/Users/masafumi/Library/LaunchAgents/polaris.plist"])
 
 @cmd.command(help='Disable polaris system.')
 def disable():
@@ -127,7 +127,7 @@ def disable():
         subprocess.call(["systemctl", "--user", "stop", "polaris.timer"])
         subprocess.call(["systemctl", "--user", "disable", "polaris.timer"])
     elif system_name=="Darwin":
-        subprocess.call(["launchctl", "unload", "polaris.plist"])
+        subprocess.call(["launchctl", "unload", "/Users/masafumi/Library/LaunchAgents/polaris.plist"])
 
 @cmd.command(help='Discovering WD and update DB.')
 def update():
@@ -146,7 +146,7 @@ def update():
     db = csvdb.Database(settings["DB_PATH"])
 
     try:
-        print("Loading", flush=True)
+        #print("Loading", flush=True)
         logs = LogParser(sep=",")
         if os.path.exists(app_home + "/log.pickle"):
             logs.load(app_home + "/log.pickle")
@@ -155,7 +155,7 @@ def update():
         else:
             logs.parse(logfile)
             logs.dump(app_home + "/log.pickle")
-        print("Loaded",len(logs.log),"logs")
+        #print("Loaded",len(logs.log),"logs")
     except:
         print("Error: Failed to load log dump data. ")
         sys.exit()
@@ -267,7 +267,7 @@ def create():
     for i, l in enumerate(db.data):
         features[l[0]] = eval(l[2])
 
-    pca_n = settings['CLUSTERING_SETTINGS']['pca_nconponents']    
+    pca_n = settings['CLUSTERING_SETTINGS']['pca_nconponents']
     vectorizer = Dir2Vec(list(features.keys()), None, pca_ncomponents=pca_n)
     dirlist, vector = vectorizer.genvec_from_features(list(features.values()))
 
@@ -281,7 +281,7 @@ def create():
 
     cluster = ch.get_cluster()
 
-    ## 作業別    
+    ## 作業別
     cluster_path = dst + "/" + settings["VIRTUAL_FOLDER_NAME"]["CLUSTERING"] + "/"
     if os.path.exists(cluster_path): shutil.rmtree(cluster_path)
     if not os.path.exists(cluster_path): os.makedirs(cluster_path)
@@ -289,7 +289,11 @@ def create():
         cpath = cluster_path + "/Task" + str(i)
         if not os.path.exists(cpath): os.makedirs(cpath)
         for d in c:
-            if not os.path.exists(cpath + "/" + d.split("/")[-1]): os.symlink(d, cpath + "/" + d.split("/")[-1])
+            if not os.path.exists(cpath + "/" + d.split("/")[-1]):
+                try:
+                    os.symlink(d, cpath + "/" + d.split("/")[-1])
+                except:
+                    pass
 
     logger.info("Create Virtual Folders")
 
